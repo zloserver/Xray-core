@@ -76,8 +76,8 @@ jobs:
     strategy:
       matrix:
         # Include amd64 on all platforms.
-        goos: [windows, freebsd, openbsd, linux, darwin]
-        goarch: [amd64, 386]
+        goos: [linux]
+        goarch: [amd64]
         gotoolchain: [""]
         patch-assetname: [""]
 
