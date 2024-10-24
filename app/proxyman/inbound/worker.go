@@ -20,6 +20,7 @@ import (
 	"github.com/xtls/xray-core/features/stats"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/transport/internet"
+	"github.com/xtls/xray-core/transport/internet/restriction"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"github.com/xtls/xray-core/transport/internet/tcp"
 	"github.com/xtls/xray-core/transport/internet/udp"
@@ -34,6 +35,8 @@ type worker interface {
 }
 
 type tcpWorker struct {
+	sync.Mutex
+
 	address         net.Address
 	port            net.Port
 	proxy           proxy.Inbound
@@ -44,6 +47,7 @@ type tcpWorker struct {
 	sniffingConfig  *proxyman.SniffingConfig
 	uplinkCounter   stats.Counter
 	downlinkCounter stats.Counter
+	ipLimitPool     map[session.ID]*restriction.UserMaxIp
 
 	hub internet.Listener
 
@@ -106,9 +110,22 @@ func (w *tcpWorker) callback(conn stat.Connection) {
 	}
 	ctx = session.ContextWithContent(ctx, content)
 
-	if err := w.proxy.Process(ctx, net.Network_TCP, conn, w.dispatcher); err != nil {
+	// Add this IP address to the pool for futher IP limit check
+	w.Lock()
+	w.ipLimitPool[sid] = &restriction.UserMaxIp{
+		IpAddress: net.IP(conn.RemoteAddr().Network()),
+	}
+	w.Unlock()
+
+	if err := w.proxy.Process(ctx, net.Network_TCP, conn, w.dispatcher, &w.ipLimitPool, w.ipLimitPool[sid]); err != nil {
 		errors.LogInfoInner(ctx, err, "connection ends")
 	}
+
+	// Deletes the IP address from the pool after the connection ends
+	w.Lock()
+	delete(w.ipLimitPool, sid)
+	w.Unlock()
+
 	cancel()
 	conn.Close()
 }
@@ -118,6 +135,9 @@ func (w *tcpWorker) Proxy() proxy.Inbound {
 }
 
 func (w *tcpWorker) Start() error {
+	if len(w.ipLimitPool) == 0 {
+		w.ipLimitPool = make(map[session.ID]*restriction.UserMaxIp)
+	}
 	ctx := context.Background()
 	hub, err := internet.ListenTCP(ctx, w.address, w.port, w.stream, func(conn stat.Connection) {
 		go w.callback(conn)
@@ -246,6 +266,7 @@ type udpWorker struct {
 	sniffingConfig  *proxyman.SniffingConfig
 	uplinkCounter   stats.Counter
 	downlinkCounter stats.Counter
+	ipLimitPool     map[session.ID]*restriction.UserMaxIp
 
 	checker    *task.Periodic
 	activeConn map[connID]*udpConn
@@ -328,9 +349,23 @@ func (w *udpWorker) callback(b *buf.Buffer, source net.Destination, originalDest
 				content.SniffingRequest.RouteOnly = w.sniffingConfig.RouteOnly
 			}
 			ctx = session.ContextWithContent(ctx, content)
-			if err := w.proxy.Process(ctx, net.Network_UDP, conn, w.dispatcher); err != nil {
+
+			// Add this IP address to the pool for futher IP limit check
+			w.Lock()
+			w.ipLimitPool[sid] = &restriction.UserMaxIp{
+				IpAddress: net.IP(conn.RemoteAddr().Network()),
+			}
+			w.Unlock()
+
+			if err := w.proxy.Process(ctx, net.Network_UDP, conn, w.dispatcher, &w.ipLimitPool, w.ipLimitPool[sid]); err != nil {
 				errors.LogInfoInner(ctx, err, "connection ends")
 			}
+
+			// Deletes the IP address from the pool after the connection ends
+			w.Lock()
+			delete(w.ipLimitPool, sid)
+			w.Unlock()
+
 			conn.Close()
 			// conn not removed by checker TODO may be lock worker here is better
 			if !conn.inactive {
@@ -381,6 +416,9 @@ func (w *udpWorker) clean() error {
 }
 
 func (w *udpWorker) Start() error {
+	if len(w.ipLimitPool) == 0 {
+		w.ipLimitPool = make(map[session.ID]*restriction.UserMaxIp)
+	}
 	w.activeConn = make(map[connID]*udpConn, 16)
 	ctx := context.Background()
 	h, err := udp.ListenUDP(ctx, w.address, w.port, w.stream, udp.HubCapacity(256))
@@ -480,7 +518,7 @@ func (w *dsWorker) callback(conn stat.Connection) {
 	}
 	ctx = session.ContextWithContent(ctx, content)
 
-	if err := w.proxy.Process(ctx, net.Network_UNIX, conn, w.dispatcher); err != nil {
+	if err := w.proxy.Process(ctx, net.Network_UNIX, conn, w.dispatcher, nil, nil); err != nil {
 		errors.LogInfoInner(ctx, err, "connection ends")
 	}
 	cancel()
