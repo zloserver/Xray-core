@@ -9,6 +9,7 @@ import (
 	"github.com/xtls/xray-core/common/errors"
 	"github.com/xtls/xray-core/common/log"
 	"github.com/xtls/xray-core/common/net"
+	c "github.com/xtls/xray-core/common/ctx"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/signal"
@@ -68,7 +69,7 @@ type hasHandshakeAddressContext interface {
 }
 
 // Process implements proxy.Inbound.
-func (d *DokodemoDoor) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher, _ *map[session.ID]*restriction.UserMaxIp, _ *restriction.UserMaxIp) error {
+func (d *DokodemoDoor) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher, _ *map[c.ID]*restriction.UserMaxIp, _ *restriction.UserMaxIp) error {
 	errors.LogDebug(ctx, "processing connection from: ", conn.RemoteAddr())
 	dest := net.Destination{
 		Network: network,

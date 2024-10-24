@@ -23,6 +23,7 @@ import (
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/signal"
+	c "github.com/xtls/xray-core/common/ctx"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/features/stats"
 	"github.com/xtls/xray-core/transport"
@@ -63,7 +64,7 @@ type Inbound interface {
 	Network() []net.Network
 
 	// Process processes a connection of given network. If necessary, the Inbound can dispatch the connection to an Outbound.
-	Process(context.Context, net.Network, stat.Connection, routing.Dispatcher, *map[session.ID]*restriction.UserMaxIp, *restriction.UserMaxIp) error
+	Process(context.Context, net.Network, stat.Connection, routing.Dispatcher, *map[c.ID]*restriction.UserMaxIp, *restriction.UserMaxIp) error
 }
 
 // An Outbound process outbound connections.

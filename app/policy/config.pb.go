@@ -411,11 +411,9 @@ type Policy_Restriction struct {
 
 func (x *Policy_Restriction) Reset() {
 	*x = Policy_Restriction{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_app_policy_config_proto_msgTypes[7]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
+	mi := &file_app_policy_config_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
 func (x *Policy_Restriction) String() string {
@@ -426,7 +424,7 @@ func (*Policy_Restriction) ProtoMessage() {}
 
 func (x *Policy_Restriction) ProtoReflect() protoreflect.Message {
 	mi := &file_app_policy_config_proto_msgTypes[7]
-	if protoimpl.UnsafeEnabled && x != nil {
+	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
@@ -461,7 +459,7 @@ type SystemPolicy_Stats struct {
 
 func (x *SystemPolicy_Stats) Reset() {
 	*x = SystemPolicy_Stats{}
-	mi := &file_app_policy_config_proto_msgTypes[7]
+	mi := &file_app_policy_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -473,7 +471,7 @@ func (x *SystemPolicy_Stats) String() string {
 func (*SystemPolicy_Stats) ProtoMessage() {}
 
 func (x *SystemPolicy_Stats) ProtoReflect() protoreflect.Message {
-	mi := &file_app_policy_config_proto_msgTypes[7]
+	mi := &file_app_policy_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +613,7 @@ func file_app_policy_config_proto_rawDescGZIP() []byte {
 	return file_app_policy_config_proto_rawDescData
 }
 
-var file_app_policy_config_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_app_policy_config_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_app_policy_config_proto_goTypes = []any{
 	(*Second)(nil),             // 0: xray.app.policy.Second
 	(*Policy)(nil),             // 1: xray.app.policy.Policy

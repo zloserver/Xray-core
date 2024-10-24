@@ -24,7 +24,7 @@ func NewID() c.ID {
 	}
 }
 
-// ExportIDToError transfers session.ID into an error object, for logging purpose.
+// ExportIDToError transfers c.ID into an error object, for logging purpose.
 // This can be used with error.WriteToLog().
 func ExportIDToError(ctx context.Context) errors.ExportOption {
 	id := c.IDFromContext(ctx)

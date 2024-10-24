@@ -14,6 +14,7 @@ import (
 	"github.com/xtls/xray-core/common/log"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
+	c "github.com/xtls/xray-core/common/ctx"
 	udp_proto "github.com/xtls/xray-core/common/protocol/udp"
 	"github.com/xtls/xray-core/common/retry"
 	"github.com/xtls/xray-core/common/session"
@@ -135,7 +136,7 @@ func (s *Server) Network() []net.Network {
 }
 
 // Process implements proxy.Inbound.Process().
-func (s *Server) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher, usrIpRstrct *map[session.ID]*restriction.UserMaxIp, connIp *restriction.UserMaxIp) error {
+func (s *Server) Process(ctx context.Context, network net.Network, conn stat.Connection, dispatcher routing.Dispatcher, usrIpRstrct *map[c.ID]*restriction.UserMaxIp, connIp *restriction.UserMaxIp) error {
 	iConn := conn
 	statConn, ok := iConn.(*stat.CounterConnection)
 	if ok {
@@ -236,7 +237,7 @@ func (s *Server) Process(ctx context.Context, network net.Network, conn stat.Con
 		s.Unlock()
 
 		if len(uniqueIps) >= int(sessionPolicy.Restriction.MaxIPs) {
-			return newError("User ", user, " has exceeded their allowed IPs.").AtWarning()
+			return errors.New("User ", user, " has exceeded their allowed IPs.").AtWarning()
 		}
 
 		connIp.IpAddress = addr.IP

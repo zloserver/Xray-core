@@ -47,7 +47,7 @@ type tcpWorker struct {
 	sniffingConfig  *proxyman.SniffingConfig
 	uplinkCounter   stats.Counter
 	downlinkCounter stats.Counter
-	ipLimitPool     map[session.ID]*restriction.UserMaxIp
+	ipLimitPool     map[c.ID]*restriction.UserMaxIp
 
 	hub internet.Listener
 
@@ -136,7 +136,7 @@ func (w *tcpWorker) Proxy() proxy.Inbound {
 
 func (w *tcpWorker) Start() error {
 	if len(w.ipLimitPool) == 0 {
-		w.ipLimitPool = make(map[session.ID]*restriction.UserMaxIp)
+		w.ipLimitPool = make(map[c.ID]*restriction.UserMaxIp)
 	}
 	ctx := context.Background()
 	hub, err := internet.ListenTCP(ctx, w.address, w.port, w.stream, func(conn stat.Connection) {
@@ -266,7 +266,7 @@ type udpWorker struct {
 	sniffingConfig  *proxyman.SniffingConfig
 	uplinkCounter   stats.Counter
 	downlinkCounter stats.Counter
-	ipLimitPool     map[session.ID]*restriction.UserMaxIp
+	ipLimitPool     map[c.ID]*restriction.UserMaxIp
 
 	checker    *task.Periodic
 	activeConn map[connID]*udpConn
@@ -417,7 +417,7 @@ func (w *udpWorker) clean() error {
 
 func (w *udpWorker) Start() error {
 	if len(w.ipLimitPool) == 0 {
-		w.ipLimitPool = make(map[session.ID]*restriction.UserMaxIp)
+		w.ipLimitPool = make(map[c.ID]*restriction.UserMaxIp)
 	}
 	w.activeConn = make(map[connID]*udpConn, 16)
 	ctx := context.Background()
