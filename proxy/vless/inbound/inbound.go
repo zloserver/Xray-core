@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/xtls/xray-core/common/session"
 	"github.com/xtls/xray-core/common/signal"
 	"github.com/xtls/xray-core/common/task"
+	c "github.com/xtls/xray-core/common/ctx"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/dns"
 	feature_inbound "github.com/xtls/xray-core/features/inbound"
@@ -30,6 +32,7 @@ import (
 	"github.com/xtls/xray-core/proxy/vless"
 	"github.com/xtls/xray-core/proxy/vless/encoding"
 	"github.com/xtls/xray-core/transport/internet/reality"
+	"github.com/xtls/xray-core/transport/internet/restriction"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"github.com/xtls/xray-core/transport/internet/tls"
 )
@@ -63,6 +66,8 @@ func init() {
 
 // Handler is an inbound connection handler that handles messages in VLess protocol.
 type Handler struct {
+	sync.Mutex
+
 	inboundHandlerManager feature_inbound.Manager
 	policyManager         policy.Manager
 	validator             vless.Validator
@@ -178,11 +183,12 @@ func (*Handler) Network() []net.Network {
 }
 
 // Process implements proxy.Inbound.Process().
-func (h *Handler) Process(ctx context.Context, network net.Network, connection stat.Connection, dispatcher routing.Dispatcher) error {
+func (h *Handler) Process(ctx context.Context, network net.Network, connection stat.Connection, dispatcher routing.Dispatcher, usrIpRstrct *map[c.ID]*restriction.UserMaxIp, connIp *restriction.UserMaxIp) error {
 	iConn := connection
 	if statConn, ok := iConn.(*stat.CounterConnection); ok {
 		iConn = statConn.Connection
 	}
+
 
 	sessionPolicy := h.policyManager.ForLevel(0)
 	if err := connection.SetReadDeadline(time.Now().Add(sessionPolicy.Timeouts.Handshake)); err != nil {
@@ -442,6 +448,29 @@ func (h *Handler) Process(ctx context.Context, network net.Network, connection s
 
 	responseAddons := &encoding.Addons{
 		// Flow: requestAddons.Flow,
+	}
+
+	if sessionPolicy.Restriction.MaxIPs > 0 {
+		addr := connection.RemoteAddr().(*net.TCPAddr)
+
+		uniqueIps := make(map[string]bool)
+
+		h.Lock()
+		// Iterate through the connections and find unique used IP addresses withing last 30 seconds.
+		for _, conn := range *usrIpRstrct {
+			if conn.User == request.User.Email && !conn.IpAddress.Equal(addr.IP) && ((time.Now().Unix() - conn.Time) < 30) {
+				uniqueIps[conn.IpAddress.String()] = true
+			}
+		}
+		h.Unlock()
+
+		if len(uniqueIps) >= int(sessionPolicy.Restriction.MaxIPs) {
+			return errors.New("User ", request.User.Email, " has exceeded their allowed IPs.").AtWarning()
+		}
+
+		connIp.IpAddress = addr.IP
+		connIp.User = request.User.Email
+		connIp.Time = time.Now().Unix()
 	}
 
 	var input *bytes.Reader
