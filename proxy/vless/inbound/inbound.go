@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	gotls "crypto/tls"
+	"github.com/xtls/xray-core/features/stats"
 	"io"
 	"reflect"
 	"strconv"
@@ -187,7 +188,6 @@ func (h *Handler) Process(ctx context.Context, network net.Network, connection s
 	if statConn, ok := iConn.(*stat.CounterConnection); ok {
 		iConn = statConn.Connection
 	}
-
 
 	sessionPolicy := h.policyManager.ForLevel(0)
 	if err := connection.SetReadDeadline(time.Now().Add(sessionPolicy.Timeouts.Handshake)); err != nil {
@@ -449,9 +449,9 @@ func (h *Handler) Process(ctx context.Context, network net.Network, connection s
 		// Flow: requestAddons.Flow,
 	}
 
-	if sessionPolicy.Restriction.MaxIPs > 0 {
-		addr := connection.RemoteAddr().(*net.TCPAddr)
+	addr := connection.RemoteAddr().(*net.TCPAddr)
 
+	if sessionPolicy.Restriction.MaxIPs > 0 {
 		uniqueIps := make(map[string]bool)
 
 		h.Lock()
@@ -466,11 +466,24 @@ func (h *Handler) Process(ctx context.Context, network net.Network, connection s
 		if len(uniqueIps) >= int(sessionPolicy.Restriction.MaxIPs) {
 			return newError("User ", request.User.Email, " has exceeded their allowed IPs.").AtWarning()
 		}
-
-		connIp.IpAddress = addr.IP
-		connIp.User = request.User.Email
-		connIp.Time = time.Now().Unix()
 	}
+
+	connIp.IpAddress = addr.IP
+	connIp.User = request.User.Email
+	connIp.Time = time.Now().Unix()
+
+	v := core.MustFromContext(ctx)
+	statsManager := v.GetFeature(stats.ManagerType()).(stats.Manager)
+	uniqueUsersGlobal := make(map[string]bool)
+	var a, _ = stats.GetOrRegisterCounter(statsManager, "global>>>userCount")
+	h.Lock()
+	for _, conn := range *usrIpRstrct {
+		if (time.Now().Unix() - conn.Time) < 30 {
+			uniqueUsersGlobal[conn.User] = true
+		}
+	}
+	h.Unlock()
+	a.Set(int64(len(uniqueUsersGlobal)))
 
 	var input *bytes.Reader
 	var rawInput *bytes.Buffer
